@@ -4,3 +4,5 @@
 #+BEGIN_SRC ruby
   puts "hello"
 #+END_SRC
+*** github 里是可以直接支持这样的格式的
+    *加粗* /斜体/ _下划线_ ~代码块~ 下标_标记
