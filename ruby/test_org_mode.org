@@ -1,0 +1,6 @@
+* 简单测试一下github能不能默认支持org文档
+** 在这里加一个代码块
+
+#+BEGIN_SRC ruby
+  puts "hello"
+#+END_SRC
