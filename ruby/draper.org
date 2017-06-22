@@ -1,0 +1,30 @@
+** Draper里如何把 ~decorate~ 方法加入到AR里的？
+   ~lib/draper/railtie.rb~ 里对 [[http://api.rubyonrails.org/classes/Rails/Railtie.html][Railtie]] 进行扩展，在如下代码里对AR::Base
+   进行了注入：
+
+   #+BEGIN_SRC ruby
+    initializer 'draper.setup_orm' do
+      [:active_record, :mongoid].each do |orm|
+        ActiveSupport.on_load orm do
+          Draper.setup_orm self
+        end
+      end
+    end
+   #+END_SRC
+
+   表示的意思是对在AR load的时候，运行 ~Draper.setup_orm~ 语句
+
+   再看到 ~lib/draper.rb~ 文件里
+
+#+BEGIN_SRC ruby
+def self.setup_orm(base)
+  base.class_eval do
+    include Draper::Decoratable
+  end
+end
+#+END_SRC
+   这样每个AR的子类(就是每个model)里就会自动 ~include Decoratable~ , 之后就可以使用 ~decorate~ 这个方法
+
+   - 如果是一个PORO类，或是只有 ~include ActiveModel::Model~ 的类，想使
+     用 decorate 方法，只需要在 model 文件里 *include
+     Draper::Decoratable* 就可以了
