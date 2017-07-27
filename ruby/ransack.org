@@ -1,0 +1,75 @@
+** Ransack里是如何根据string去找到相应的操作方法？
+   在使用过程中，如果遇到polymorphic的同时，还是一个在某module里的类，
+   可以这样去写query:
+
+#+BEGIN_SRC ruby
+query = { "imageable_of_AModule::AClass_type_name_cont" => "pic" }
+#+END_SRC
+
+   解析这部分的代码如下：
+
+1. 先是在 ~lib/ransack/search.rb~ 里的 ~build~ 方法
+
+#+BEGIN_SRC ruby
+    def build(params)
+      collapse_multiparameter_attributes!(params).each do |key, value|
+        if Constants::S_SORTS.include?(key)
+          send("#{key}=", value)
+        elsif base.attribute_method?(key)
+          base.send("#{key}=", value)
+        elsif @context.ransackable_scope?(key, @context.object)
+          add_scope(key, value)
+        elsif !Ransack.options[:ignore_unknown_conditions]
+          raise ArgumentError, "Invalid search term #{key}"
+        end
+      end
+      self
+    end
+#+END_SRC
+
+   找到 ~base.attribute_method?~ 方法
+
+2. 上面这个方法定义在 ~lib/ransack/adapters/active_record/context.rb~ 里
+
+   #+BEGIN_SRC ruby
+        def attribute_method?(str, klass = @klass)
+          exists = false
+          if ransackable_attribute?(str, klass)
+            exists = true
+          elsif (segments = str.split(/_/)).size > 1
+            remainder = []
+            found_assoc = nil
+            while !found_assoc && remainder.unshift(segments.pop) &&
+            segments.size > 0 do
+              assoc, poly_class = unpolymorphize_association(
+                segments.join(Constants::UNDERSCORE)
+                )
+              if found_assoc = get_association(assoc, klass)
+                exists = attribute_method?(
+                  remainder.join(Constants::UNDERSCORE),
+                  poly_class || found_assoc.klass
+                  )
+              end
+            end
+          end
+          exists
+        end
+   #+END_SRC
+
+
+   其中 ~unpolymorphize_association~ 方法是用来处理多态的情况
+
+3. 在 ~lib/ransack/context.rb~ 里的 ~unpolymorphize_association~ 方法：
+
+   #+BEGIN_SRC ruby
+    def unpolymorphize_association(str)
+      if (match = str.match(/_of_([^_]+?)_type$/))
+        [match.pre_match, Kernel.const_get(match.captures.first)]
+      else
+        [str, nil]
+      end
+    end
+   #+END_SRC
+
+   这里可以看到是使用 ~Kernel.const_get~ 方法来得到对应的类，所以这里是
+   使用类似 ~AModule::AClass~ 来得到对应的类
